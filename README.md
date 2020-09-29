@@ -3,6 +3,7 @@
 [![Build Status](https://travis-ci.org/JuliaGeo/Shapefile.jl.svg)](https://travis-ci.org/JuliaGeo/Shapefile.jl)
 
 This library supports reading ESRI Shapefiles in pure Julia.
+The with the latest API, the speciality of geometry is retained, though now the .shp and the .dbf data can be represented together
 
 ## Quick Start
 Basic example of reading a shapefile from test cases:
@@ -14,36 +15,51 @@ path = joinpath(dirname(pathof(Shapefile)),"..","test","shapelib_testcases","tes
 table = Shapefile.Table(path)
 
 # if you only want the geometries and not the metadata in the DBF file
-geoms = Shapefile.shapes(table)
+table.Geometry
 
 # whole columns can be retrieved by their name
 table.Descriptio  # => Union{String, Missing}["Square with triangle missing", "Smaller triangle", missing]
 
 # example function that iterates over the rows and gathers shapes that meet specific criteria
 function selectshapes(table)
-    geoms = empty(Shapefile.shapes(table))
+    geoms = empty(table.Geometry)
     for row in table
         if !ismissing(row.TestDouble) && row.TestDouble < 2000.0
-            push!(geoms, Shapefile.shape(row))
+            push!(geoms, row.Geometry)
         end
     end
     return geoms
 end
 
-# the metadata can be converted to other Tables such as DataFrame
+# to view the entire data in the form of a DataFrame
 using DataFrames
 df = DataFrame(table)
+
+# attribute names are accessible as
+names(df)
 ```
-
-Shapefiles can contain multiple parts for each shape entity.
-Use `GeoInterface.coordinates` to fully decompose the shape data into parts.
-
+If DBF and SHP data are needed separately the set the `separate` parameter in the `Shapefile.Table` function to `true`(Default is `false`) 
 ```julia
-# Example of converting the 1st shape of the file into parts (array of coordinates)
-julia> GeoInterface.coordinates(Shapefile.shape(first(table)))
-2-element Array{Array{Array{Array{Float64,1},1},1},1}:
- Array{Array{Float64,1},1}[Array{Float64,1}[[20.0, 20.0], ...]]
- Array{Array{Float64,1},1}[Array{Float64,1}[[0.0, 0.0], ...]]
+# Example of working with metadata
+using GeometryBasics
+
+path = joinpath(dirname(pathof(Shapefile)),"..","test","shapelib_testcases","test.shp")
+table = Shapefile.Table(path, true)
+
+# read the shapes
+shapes = Shapefile.shapes(table);
+# read the first shape
+shape = Shapefile.shape(first(table));
+
+# get the shape without it's metadata
+shape_mf = metafree(shape)
+
+# get the metadata as a NamedTuple
+shape_meta = meta(shape)
+
+# the DBF metadata can be converted to other Tables such as DataFrame
+using DataFrames
+df = DataFrame(table)
 ```
 
 ## Alternative packages
